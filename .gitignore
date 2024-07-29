@@ -223,7 +223,6 @@ pip-log.txt
 
 /target
 target/classes
-*.class
 .idea/compiler.xml
 .idea/
 target/classes/plugin.yml
