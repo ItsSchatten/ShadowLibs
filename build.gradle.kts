@@ -28,7 +28,7 @@ dependencies {
 group = "com.itsschatten.libs"
 version = "1.0.10"
 description = "ShadowLibs"
-java.sourceCompatibility = JavaVersion.VERSION_17
+java.sourceCompatibility = JavaVersion.VERSION_21
 
 publishing {
     repositories {
