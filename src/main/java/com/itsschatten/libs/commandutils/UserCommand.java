@@ -6,10 +6,13 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.apache.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.Serial;
 
 /**
  * The class that will run a command for a player.
@@ -46,7 +49,7 @@ public abstract class UserCommand extends Command {
     }
 
     @Override
-    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
         if (!(sender instanceof Player)) {
             tell(onlyPlayer);
             return true;
@@ -191,7 +194,7 @@ public abstract class UserCommand extends Command {
      * @param player The player to check if they have permission for.
      * @param perms  The permission, usually an enumeration in my case, to run the command.
      */
-    protected void checkPerms(Player player, IPermissions perms) {
+    protected void checkPerms(@NotNull Player player, @NotNull IPermissions perms) {
         if (!player.hasPermission(perms.getPermission()))
             returnTell(Utils.getNoPermsMessage().replace("{prefix}", prefix).replace("{permission}", perms.getPermission()));
     }
@@ -200,7 +203,8 @@ public abstract class UserCommand extends Command {
      * Returns a command.
      */
     @RequiredArgsConstructor
-    private final class ReturnedCommandException extends RuntimeException {
+    private static final class ReturnedCommandException extends RuntimeException {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private final String tellMessage;

@@ -232,3 +232,5 @@ target/classes/settings.yml
 Server/
 *.iml
 build.xml
+
+.gradle

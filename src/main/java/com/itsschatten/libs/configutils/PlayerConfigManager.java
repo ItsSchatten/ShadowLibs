@@ -1,11 +1,13 @@
 package com.itsschatten.libs.configutils;
 
 import com.itsschatten.libs.Utils;
+import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,21 +17,23 @@ import java.util.UUID;
 
 public class PlayerConfigManager {
 
-    private static List<PlayerConfigManager> configs = new ArrayList<>();
+    @Getter
+    private static final List<PlayerConfigManager> configs = new ArrayList<>();
+
     private final UUID u;
     private final String path;
     private final JavaPlugin plugin = JavaPlugin.getProvidingPlugin(this.getClass());
     private FileConfiguration fc;
     private File file;
 
-    private PlayerConfigManager(Player p) {
+    private PlayerConfigManager(@NotNull Player p) {
         this.u = p.getUniqueId();
         this.path = null;
 
         configs.add(this);
     }
 
-    private PlayerConfigManager(Player p, String path) {
+    private PlayerConfigManager(@NotNull Player p, String path) {
         this.u = p.getUniqueId();
         this.path = path;
 
@@ -60,14 +64,14 @@ public class PlayerConfigManager {
      * @param p The Player of the config found by getOwner()
      * @return Config for given player.
      */
-    public static PlayerConfigManager getConfig(Player p) {
+    public static @NotNull PlayerConfigManager getConfig(Player p) {
         for (final PlayerConfigManager c : configs)
             if (c.getOwnerUUID().equals(p.getUniqueId()))
                 return c;
         return new PlayerConfigManager(p);
     }
 
-    public static PlayerConfigManager getConfig(Player p, String path) {
+    public static @NotNull PlayerConfigManager getConfig(Player p, String path) {
         for (final PlayerConfigManager c : configs)
             if (c.getOwnerUUID().equals(p.getUniqueId())) {
                 return c;
@@ -84,11 +88,30 @@ public class PlayerConfigManager {
      * @param u The UUID of the player who is the owner of the config
      * @return Config for given UUID
      */
-    public static PlayerConfigManager getConfig(UUID u) {
+    public static @NotNull PlayerConfigManager getConfig(UUID u) {
         for (final PlayerConfigManager c : configs)
             if (c.getOwnerUUID().equals(u))
                 return c;
         return new PlayerConfigManager(u);
+    }
+
+    public static void removeConfig(final @NotNull Player player) {
+        removeConfig(player.getUniqueId());
+    }
+
+    public static void removeConfig(final UUID uuid) {
+        PlayerConfigManager config = null;
+
+        for (final PlayerConfigManager c : configs) {
+            if (c.getOwnerUUID().equals(uuid)) {
+                config = c;
+                break;
+            }
+        }
+
+        if (config != null) {
+            config.discard();
+        }
     }
 
     /**
@@ -102,7 +125,8 @@ public class PlayerConfigManager {
                 throw new Exception();
             } catch (final Exception e) {
                 getInstance().getLogger().warning("ERR... Player is Null!");
-                e.printStackTrace();
+                Utils.logError(e);
+                return null;
             }
         }
 
@@ -120,9 +144,14 @@ public class PlayerConfigManager {
                 throw new Exception();
             } catch (final Exception e) {
                 getInstance().getLogger().warning("ERR... Player is Null!");
-                e.printStackTrace();
+                Utils.logError(e);
+                return null;
             }
         return u;
+    }
+
+    public final void discard() {
+        configs.remove(this);
     }
 
     /**
@@ -133,12 +162,6 @@ public class PlayerConfigManager {
      * @return The class that extends JavaPlugin
      */
     public JavaPlugin getInstance() {
-        if (plugin == null)
-            try {
-                throw new Exception();
-            } catch (final Exception e) {
-                e.printStackTrace();
-            }
         return plugin;
     }
 
@@ -146,7 +169,7 @@ public class PlayerConfigManager {
      * Deletes the file
      *
      * @return True if the config was successfully deleted. If anything went
-     * wrong it returns false
+     * wrong, it returns false
      */
     public boolean delete() {
         return getFile().delete();
@@ -201,7 +224,7 @@ public class PlayerConfigManager {
                 try {
                     file.createNewFile();
                 } catch (final IOException e) {
-                    e.printStackTrace();
+                    Utils.logError(e);
                 }
         }
         return file;
@@ -230,7 +253,7 @@ public class PlayerConfigManager {
                 try {
                     file.createNewFile();
                 } catch (final IOException e) {
-                    e.printStackTrace();
+                    Utils.logError(e);
                 }
             fc = YamlConfiguration.loadConfiguration(file);
             Utils.log("Player Config for player " + getOwner().getDisplayName() + " has been 'reloaded'");
@@ -252,7 +275,7 @@ public class PlayerConfigManager {
         try {
             getConfig().save(getFile());
         } catch (final IOException e) {
-            e.printStackTrace();
+            Utils.logError(e);
         }
     }
 }

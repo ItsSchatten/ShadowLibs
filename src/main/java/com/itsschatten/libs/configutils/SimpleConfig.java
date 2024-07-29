@@ -1,7 +1,9 @@
 package com.itsschatten.libs.configutils;
 
 import com.itsschatten.libs.Utils;
-import org.apache.commons.lang.StringUtils;
+import lombok.Getter;
+import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -14,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -26,7 +29,7 @@ public class SimpleConfig extends YamlConfiguration {
     private final File file;
 
     /**
-     * The default file, can be null
+     * The default file. Could be null
      */
     private final YamlConfiguration defaults;
 
@@ -35,7 +38,12 @@ public class SimpleConfig extends YamlConfiguration {
      * gets edited automatically.
      * <p>
      * Call {@link #setHeader(String[])} to use this.
+     * -- GETTER --
+     * Gets the header that is applied when the file is updated, or null if not set.
+     *
+     * @return the edit header
      */
+    @Getter
     private String[] editHeader;
 
     /**
@@ -47,14 +55,19 @@ public class SimpleConfig extends YamlConfiguration {
      * <p>
      * Only works when the default file does not exist! (logically, in the example above you cannot create default
      * values for each player out there :))
+     * -- SETTER --
+     * Set the new default
+     *
+     * @param pathPrefix, the new path prefix, or use null to un-set
      */
+    @Setter
     private String pathPrefix;
 
     /**
      * Makes a new SimpleConfig instance that will manage one configuration file.
      * <p>
-     * NB: Make sure you created the file with the exact same name and all
-     * the default values inside of your plugin in the src/main/resources folder!
+     * NB: Make sure you create the file with the exact same name and all
+     * the default values inside your plugin in the src/main/resources folder!
      *
      * @param fileName, the name of the configuration file, e.g. settings.yml
      */
@@ -101,29 +114,10 @@ public class SimpleConfig extends YamlConfiguration {
     }
 
     /**
-     * Gets the header that is applied when the file is updated, or null if not set.
-     *
-     * @return the edit header
-     */
-    public String[] getEditHeader() {
-        return editHeader;
-    }
-
-    /**
-     * Set the new default {@link #pathPrefix}
-     *
-     * @param pathPrefix, the new path prefix, or use null to un-set
-     */
-    public void setPathPrefix(String pathPrefix) {
-        this.pathPrefix = pathPrefix;
-    }
-
-    /**
      * Saves the file on the disk and loads it again.
      */
     public void reloadConfig() {
         saveConfig();
-
         loadConfig();
     }
 
@@ -132,7 +126,7 @@ public class SimpleConfig extends YamlConfiguration {
      * Example: write("weather.disable", true)
      *
      * @param path,  the path, use '.' to split sections
-     * @param value, the value, can be a primitive, a String, HashMap or a Collection (List, or a Set)
+     * @param value, the value can be a primitive, a String, HashMap or a Collection (List, or a Set)
      */
     public void write(String path, Object value) {
         set(path, value);
@@ -146,7 +140,7 @@ public class SimpleConfig extends YamlConfiguration {
 
             // Copy the header
             if (editHeader != null) {
-                options().header(StringUtils.join(editHeader, System.lineSeparator()));
+                options().setHeader(Collections.singletonList(StringUtils.join(editHeader, System.lineSeparator())));
                 options().copyHeader(true);
             }
 
@@ -154,9 +148,8 @@ public class SimpleConfig extends YamlConfiguration {
             super.save(file);
 
         } catch (final IOException ex) {
-            System.out.println("Failed to save configuration from " + file);
-
-            ex.printStackTrace();
+            Utils.logError(ex);
+            Utils.logError("Failed to save configuration from '" + file + "'.");
         }
     }
 
@@ -168,9 +161,8 @@ public class SimpleConfig extends YamlConfiguration {
             super.load(file);
 
         } catch (final Throwable t) {
-            System.out.println("Failed to load configuration from " + file);
-
-            t.printStackTrace();
+            Utils.logError(t);
+            Utils.logError("Failed to load configuration from " + file);
         }
     }
 
@@ -190,7 +182,7 @@ public class SimpleConfig extends YamlConfiguration {
                 final Object defaultValue = defaults.get(path);
                 Objects.requireNonNull(defaultValue, "Default " + file.getName() + " in your .jar lacks a key at '" + path + "' path");
 
-                Utils.log("&fUpdating &a" + file.getName() + "&f. Set '&b" + path + "&f' to '" + defaultValue + "'");
+                Utils.log("Updating " + file.getName() + ". Set '" + path + "' to '" + defaultValue + "'");
                 write(path, defaultValue);
             }
         }
@@ -210,7 +202,7 @@ public class SimpleConfig extends YamlConfiguration {
         // hacky workaround: prevent infinite loop due to how get works in the parent class
         final String m = new Throwable().getStackTrace()[1].getMethodName();
 
-        // Add path prefix, but only when the default file doesn't  exist
+        // Add path prefix, but only when the default file doesn't exist
         if (defaults == null && pathPrefix != null && !m.equals("getConfigurationSection") && !m.equals("get"))
             path = pathPrefix + "." + path;
 
@@ -219,7 +211,7 @@ public class SimpleConfig extends YamlConfiguration {
 
     // Extract the file from your jar to the plugins/YourPlugin folder.
     // Does nothing if the file exists
-    private File extract(String path) {
+    private @NotNull File extract(String path) {
         final JavaPlugin i = Utils.getInstance();
         final File file = new File(i.getDataFolder(), path);
 
@@ -235,35 +227,32 @@ public class SimpleConfig extends YamlConfiguration {
 
                 // Now copy the content of the default file to there
                 Files.copy(is, Paths.get(file.toURI()), StandardCopyOption.REPLACE_EXISTING);
-                Utils.log("&7Created the default file &b" + path + "&7.");
-
+                Utils.log("Created the default file '" + path + "'.");
             } catch (final IOException e) {
-                e.printStackTrace();
+                Utils.logError(e);
             }
 
         return file;
     }
 
-    // Creates YourPlugin folder in plugins/ and the necessary file (e.g. settings.yml)
-    private File createFileAndDirectory(String path) {
-
+    // Creates YourPlugin folder in plugins/ and the necessary file (e.g., settings.yml)
+    private @NotNull File createFileAndDirectory(@NotNull String path) {
         // The data folder is your plugin's folder with your plugin's name inside plugins/ folder.
-        final File datafolder = Utils.getInstance().getDataFolder();
+        final File dataFolder = Utils.getInstance().getDataFolder();
         final int lastIndex = path.lastIndexOf('/');
-        final File directory = new File(datafolder, path.substring(0, Math.max(lastIndex, 0)));
+        final File directory = new File(dataFolder, path.substring(0, Math.max(lastIndex, 0)));
 
         // Create all directories if necessary
         directory.mkdirs();
 
-        final File destination = new File(datafolder, path);
+        final File destination = new File(dataFolder, path);
 
         try {
-            if (!destination.createNewFile()) Utils.log("Failed to create the " + destination + " file...");
+            if (!destination.createNewFile()) Utils.logError("Failed to create the '" + destination + "' file...");
 
         } catch (final IOException ex) {
-            System.out.println("Failed to create file " + path);
-
-            ex.printStackTrace();
+            Utils.logError(ex);
+            Utils.logError("Failed to create file '" + path + "'.");
         }
 
         return destination;
@@ -277,7 +266,7 @@ public class SimpleConfig extends YamlConfiguration {
             return WRAPPER_TYPES.contains(clazz);
         }
 
-        private static Set<Class<?>> getWrapperTypes() {
+        private static @NotNull Set<Class<?>> getWrapperTypes() {
             final Set<Class<?>> ret = new HashSet<>();
             ret.add(Boolean.class);
             ret.add(Character.class);

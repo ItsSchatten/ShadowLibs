@@ -3,6 +3,7 @@ package com.itsschatten.libs;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.UtilityClass;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -12,16 +13,29 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.io.BukkitObjectInputStream;
+import org.bukkit.util.io.BukkitObjectOutputStream;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.yaml.snakeyaml.external.biz.base64Coder.Base64Coder;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The utilities class.
+ * The utility class.
  */
+@UtilityClass
 public class Utils {
 
     private static final Pattern HEX_PATTERN = Pattern.compile("<#(\\w{6})>");
@@ -35,7 +49,7 @@ public class Utils {
     private static String prefix = "";
 
     /**
-     * The instance of the plugin that implements this library, allows the use of things from the JavaPlugin class.
+     * The instance of the plugin allowing the use of things from the JavaPlugin class.
      */
     @Setter(AccessLevel.PUBLIC)
     @Getter(AccessLevel.PUBLIC)
@@ -59,12 +73,13 @@ public class Utils {
      * @param key The key to create.
      * @return a new {@link NamespacedKey}
      */
-    public static NamespacedKey getKey(String key) {
+    @Contract("_ -> new")
+    public static @NotNull NamespacedKey getKey(String key) {
         return new NamespacedKey(getInstance(), key);
     }
 
     /**
-     * Check if server is running a minimum Minecraft version
+     * Check if the server is running a minimum Minecraft version
      *
      * @param major Major version to check (Most likely just going to be 1)
      * @param minor Minor version to check
@@ -116,7 +131,7 @@ public class Utils {
      * @param title    The message for the title. (Or the bigger message)
      * @param subtitle The message for the subtitle (Or the smaller message)/
      */
-    public static void sendTitle(Player pl, String title, String subtitle) {
+    public static void sendTitle(@NotNull Player pl, String title, String subtitle) {
         pl.sendTitle(colorize(title), colorize(subtitle), 20, 3 * 20, 10);
     }
 
@@ -135,62 +150,12 @@ public class Utils {
     }
 
     /**
-     * Log multiple messages to console.
-     *
-     * @param messages The messages to log.
-     */
-    public static void log(String... messages) {
-        for (final String message : messages)
-            log(message);
-    }
-
-    /**
-     * Log a message to console.
-     *
-     * @param message The messages to log.
-     */
-    public static void log(String message) {
-        tell(Bukkit.getConsoleSender(), "[" + instance.getName() + "] " + message);
-    }
-
-    /**
-     * Logs a debug message to console.
-     *
-     * @param enabled Is debugging enabled?
-     * @param message The message to be sent.
-     */
-    private static void debugLog(boolean enabled, String message) {
-        if (enabled) {
-            log("[DEBUG] " + message);
-        }
-    }
-
-    /**
-     * Logs a debug message to console.
-     *
-     * @param message The message to be sent to console.
-     */
-    public static void debugLog(String message) {
-        debugLog(isDebugMode(), message);
-    }
-
-    /**
-     * Logs debug messages to console.
-     *
-     * @param messages The messages to be logged in console.
-     */
-    public static void debugLog(String... messages) {
-        for (String message : messages)
-            debugLog(message);
-    }
-
-    /**
      * Send multiple messages to someone.
      *
      * @param toWhom   The person to send the message to.
-     * @param messages Send multiple message to a player, all separated by a comma (,).
+     * @param messages Send multiple messages to a player, all separated by a comma (,).
      */
-    public static void tell(CommandSender toWhom, String... messages) {
+    public static void tell(CommandSender toWhom, String @NotNull ... messages) {
         for (final String message : messages)
             tell(toWhom, message);
     }
@@ -201,8 +166,8 @@ public class Utils {
      * @param toWhom  The person to tell the message to.
      * @param message The message to send.
      */
-    public static void tell(CommandSender toWhom, String message) {
-        if (!message.equals(""))
+    public static void tell(CommandSender toWhom, @NotNull String message) {
+        if (!message.isEmpty())
             toWhom.sendMessage(colorize(message.replace("{prefix}", getPrefix())));
     }
 
@@ -216,11 +181,11 @@ public class Utils {
      * @param message The message to colorize.
      * @return The colorized message.
      */
-    public static String colorize(final String message) {
+    public static String colorize(final @NotNull String message) {
 
         if (message.contains("<#")) {
             final Matcher hexMatch = HEX_PATTERN.matcher(net.md_5.bungee.api.ChatColor.translateAlternateColorCodes('&', message));
-            final StringBuffer buffer = new StringBuffer();
+            final StringBuilder buffer = new StringBuilder();
 
             while (hexMatch.find()) {
                 hexMatch.appendReplacement(buffer, net.md_5.bungee.api.ChatColor.of("#" + hexMatch.group(1)).toString());
@@ -246,7 +211,7 @@ public class Utils {
             commandMap.register(instance.getName(), command);
 
         } catch (final Exception e) {
-            e.printStackTrace();
+            logError(e);
         }
     }
 
@@ -259,24 +224,206 @@ public class Utils {
      * @return The object if not null, otherwise returns a default.
      */
     public static <T> T getOrDefault(T nullable, T def) {
-        return nullable != null ? nullable : def;
+        return Objects.requireNonNullElse(nullable, def);
     }
 
     /**
-     * @param delay The delay.
-     * @param task  The task.
+     * @return Returns the instance's logger.
      */
-    public static void runLater(int delay, BukkitRunnable task) {
-        runLater(delay, task);
+    public static @NotNull Logger getLogger() {
+        return getInstance().getLogger();
     }
 
     /**
-     * @param delay The delay
-     * @param task  The task
+     * Sends a {@link String message} (or multiple) to the console with the INFO level.
+     *
+     * @param message  The first message that should be sent.
+     * @param messages An array of messages that are then iterated through and sent to the console.
      */
-    public static void runLater(int delay, Runnable task) {
-        Bukkit.getScheduler().runTaskLater(instance, task, delay);
+    public static void log(@NotNull final String message, final String... messages) {
+        if (instance == null) {
+            throw new NullPointerException("Cannot log messages with a null plugin instance.");
+        }
+
+        getLogger().info(message);
+
+        if (!message.isEmpty())
+            for (final String msg : messages)
+                getLogger().info(msg);
+
+
     }
 
+    /**
+     * Sends a {@link String message} (or multiple) to the console with the INFO level and an added [DEBUG].
+     *
+     * @param message  The first message that should be sent.
+     * @param messages An array of messages that are then iterated through and sent to the console.
+     */
+    public static void debugLog(@NotNull final String message, final String... messages) {
+        if (instance == null) {
+            throw new NullPointerException("Cannot log messages with a null plugin instance.");
+        }
+
+        if (isDebugMode()) {
+            getLogger().info("[DEBUG] " + message);
+
+            if (!message.isEmpty())
+                for (final String msg : messages)
+                    getLogger().info("[DEBUG] " + msg);
+        }
+    }
+
+    /**
+     * Sends a {@link String message} (or multiple) to the console with the WARNING level.
+     *
+     * @param message  The first message that should be sent.
+     * @param messages An array of messages that are then iterated through and sent to the console.
+     */
+    public static void logWarning(@NotNull String message, String... messages) {
+        if (instance == null) {
+            throw new NullPointerException("Cannot log messages with a null plugin instance.");
+        }
+
+        getLogger().warning(message);
+
+        if (!message.isEmpty())
+            for (final String msg : messages)
+                getLogger().warning(msg);
+    }
+
+    /**
+     * Sends a {@link String message} (or multiple) to the console with the ERROR level.
+     *
+     * @param message  The first message that should be sent.
+     * @param messages An array of messages that are then iterated through and sent to the console.
+     */
+    public static void logError(@NotNull String message, String... messages) {
+        if (instance == null) {
+            throw new NullPointerException("Cannot log messages with a null plugin instance.");
+        }
+
+        getLogger().severe(message);
+
+        if (!message.isEmpty())
+            for (final String msg : messages)
+                getLogger().severe(msg);
+    }
+
+    /**
+     * Quickly log a {@link Throwable} error to console.
+     *
+     * @param error The error we wish to send to console.
+     */
+    public static void logError(@NotNull Throwable error) {
+        logError("---------------- [ ERROR LOG START ] ----------------");
+        logError("ERROR TYPE: " + error);
+        logError("CAUSE: " + (error.getCause() == null ? "N/A" : error.getCause().getMessage()));
+        logError("MESSAGE: " + (error.getMessage() == null ? "" : error.getMessage()));
+        for (final StackTraceElement elm : error.getStackTrace()) {
+            logError(elm.toString());
+        }
+        logError("----------------- [ ERROR LOG END ] -----------------");
+    }
+
+
+    /**
+     * Serialize a single {@link ItemStack} into base64.
+     *
+     * @param item The item to serialize.
+     * @return A nullable string of base64.
+     * @see #deserialize(String)
+     * @see #deserializeArray(String)
+     * @see #serializeArray(ItemStack[])
+     */
+    public static String serialize(final ItemStack item) {
+        return serializeArray(new ItemStack[]{item});
+    }
+
+    /**
+     * Deserializes base64 data into a single item stack.
+     *
+     * @param data The data to deserialize.
+     * @return A nonnull {@link ItemStack}
+     * @see #serialize(ItemStack)
+     * @see #serializeArray(ItemStack[])
+     * @see #deserializeArray(String)
+     */
+    public static ItemStack deserialize(final String data) {
+        return Objects.requireNonNull(deserializeArray(data))[0];
+    }
+
+    /**
+     * Serialize an {@link ItemStack} array into {@link java.util.Base64}
+     *
+     * @param item The array to serialize.
+     * @return Returns a possibly null string that should be base64 encoded.
+     * @see #deserialize(String)
+     * @see #deserializeArray(String)
+     * @see #serialize(ItemStack)
+     */
+    public static @Nullable String serializeArray(ItemStack[] item) {
+        try {
+            final ByteArrayOutputStream finalOutputStream = new ByteArrayOutputStream();
+            final ByteArrayOutputStream tempOutputStream = new ByteArrayOutputStream();
+            final BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(tempOutputStream);
+            int failedItems = 0;
+
+            dataOutput.writeInt(item.length);
+
+            for (final ItemStack itemStack : item) {
+                try {
+                    dataOutput.writeObject(itemStack);
+                } catch (final Exception ex) {
+                    failedItems++;
+                    tempOutputStream.reset();
+                } finally {
+                    if (tempOutputStream.size() == 0) {
+                        dataOutput.writeObject(null);
+                    }
+                    finalOutputStream.write(tempOutputStream.toByteArray());
+                    tempOutputStream.reset();
+                }
+            }
+
+            if (failedItems > 0) {
+                Utils.logError("Failed to serialize " + failedItems + " invalid items");
+            }
+
+            dataOutput.close();
+            return Base64Coder.encodeLines(finalOutputStream.toByteArray());
+        } catch (EOFException ignored) { // Fail gracefully.
+            Utils.debugLog("EOF exception generated!");
+        } catch (Exception ex) {
+            logError(ex);
+        }
+        return null;
+    }
+
+    /**
+     * Deserialize a base64 encoded string to an {@link ItemStack} array.
+     *
+     * @param data The data to use to deserialize.
+     * @return A possible nullable ItemStack array.
+     * @see #deserialize(String)
+     * @see #serializeArray(ItemStack[])
+     * @see #serialize(ItemStack)
+     */
+    public static ItemStack @Nullable [] deserializeArray(String data) {
+        try {
+            final ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64Coder.decodeLines(data));
+            final BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
+            final ItemStack[] output = new ItemStack[dataInput.readInt()];
+            for (int i = 0; i < output.length; i++) {
+                output[i] = (ItemStack) dataInput.readObject();
+            }
+            dataInput.close();
+            return output;
+        } catch (IOException | ClassNotFoundException e) {
+            logError(e);
+        }
+
+        return null;
+    }
 
 }

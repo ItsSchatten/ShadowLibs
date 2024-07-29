@@ -1,14 +1,15 @@
 package com.itsschatten.libs.commandutils;
 
+import com.itsschatten.libs.Utils;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import com.itsschatten.libs.Utils;
-import org.apache.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class ConsoleCommand extends Command {
 
@@ -35,7 +36,7 @@ public abstract class ConsoleCommand extends Command {
     }
 
     @Override
-    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
         this.sender = sender;
         this.args = args;
         setCommandLabel(commandLabel.toLowerCase());
@@ -80,7 +81,6 @@ public abstract class ConsoleCommand extends Command {
             number = Integer.parseInt(args[argsIndex]);
 
             Validate.isTrue(number >= from && number <= to);
-
         } catch (final IllegalArgumentException ex) {
             returnTell(errorMessage.replace("{min}", from + "").replace("{max}", to + ""));
         }

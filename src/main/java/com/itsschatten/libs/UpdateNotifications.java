@@ -22,7 +22,7 @@ public abstract class UpdateNotifications extends BukkitRunnable {
         UpdateNotifications.projectId = projectId;
     }
 
-    public static boolean isUpdateAvailable() {
+    public final boolean isUpdateAvailable() {
         final String currentVersion = Utils.getInstance().getDescription().getVersion();
 
         final String currentIdentifier = currentVersion.contains("-") ? currentVersion.substring(currentVersion.indexOf("-")) : "";
@@ -36,12 +36,17 @@ public abstract class UpdateNotifications extends BukkitRunnable {
         final int major = NumberUtils.toInt(latest[0]), minor = NumberUtils.toInt(latest[1]), patch = NumberUtils.toInt(latest[2]);
         final int curMajor = NumberUtils.toInt(current[0]), curMinor = NumberUtils.toInt(current[1]), curPatch = NumberUtils.toInt(current[2]);
 
+        // This is honestly awful.
+        // TODO: Consider doing something else to make this easier to work with.
+
+        if (curMajor > major) return false;
+
         if (major > curMajor) return true;
         if (minor > curMinor) return true;
         return patch > curPatch;
     }
 
-    public static String getUpdateMessage() {
+    public final String getUpdateMessage() {
         return Utils.getUpdateAvailableMessage();
     }
 
@@ -51,18 +56,18 @@ public abstract class UpdateNotifications extends BukkitRunnable {
             final URL url = new URL("https://api.spigotmc.org/legacy/update.php?resource=" + projectId);
             final URLConnection con = url.openConnection();
 
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
+            try (final BufferedReader r = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
                 latestVersion = r.readLine();
             }
 
-            Utils.log("&7Checking for update...");
+            Utils.log("Checking for update...");
 
             if (isUpdateAvailable())
                 onUpdateAvailable();
 
         } catch (final IOException ex) {
-            ex.printStackTrace();
-            Utils.log("An error occurred while searching for an update! Are you offline?");
+            Utils.logError(ex);
+            Utils.logError("An error occurred while searching for an update! Are you offline?");
         }
     }
 
