@@ -48,6 +48,7 @@ publishing {
     }
 
     publications.register<MavenPublication>("gpr") {
+        artifactId = "shadowlibs"
         from(components["java"])
     }
 }
