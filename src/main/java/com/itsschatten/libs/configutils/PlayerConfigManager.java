@@ -203,7 +203,7 @@ public class PlayerConfigManager {
      * @return The folder as type java.io.File
      */
     public File getDataFolder() {
-        final File dir = new File(PlayerConfigManager.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " "));
+        final File dir = plugin.getDataFolder() /*new File(PlayerConfigManager.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " "))*/;
         final File d = new File(dir.getParentFile().getPath(), getInstance().getName() + File.separator + "data");
         if (!d.exists())
             d.mkdirs();
